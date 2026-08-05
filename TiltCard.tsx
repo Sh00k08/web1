@@ -1,54 +1,59 @@
-import React, { useRef, useState } from 'react';
+import { useRef } from 'react';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 
 interface TiltCardProps {
   children: React.ReactNode;
   className?: string;
-  intensity?: number;
+  glowColor?: string;
 }
 
-export const TiltCard = React.forwardRef<HTMLDivElement, TiltCardProps>(
-  ({ children, className = '', intensity = 15 }, ref) => {
-    const cardRef = useRef<HTMLDivElement>(null);
-    const [rotateX, setRotateX] = useState(0);
-    const [rotateY, setRotateY] = useState(0);
+export function TiltCard({ children, className = '', glowColor = '#F2A93B' }: TiltCardProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
 
-    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!cardRef.current) return;
+  const springConfig = { stiffness: 150, damping: 15, mass: 0.5 };
+  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [10, -10]), springConfig);
+  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-10, 10]), springConfig);
 
-      const rect = cardRef.current.getBoundingClientRect();
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      const rotationX = ((y - centerY) / centerY) * intensity;
-      const rotationY = ((centerX - x) / centerX) * intensity;
-
-      setRotateX(rotationX);
-      setRotateY(rotationY);
-    };
-
-    const handleMouseLeave = () => {
-      setRotateX(0);
-      setRotateY(0);
-    };
-
-    return (
-      <div
-        ref={ref || cardRef}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        className={`transition-transform duration-200 ease-out ${className}`}
-        style={{
-          transformStyle: 'preserve-3d',
-          transform: `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
-        }}
-      >
-        {children}
-      </div>
-    );
+  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (prefersReducedMotion || !ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    x.set((e.clientX - rect.left) / rect.width - 0.5);
+    y.set((e.clientY - rect.top) / rect.height - 0.5);
   }
-);
 
-TiltCard.displayName = 'TiltCard';
+  function handleMouseLeave() {
+    x.set(0);
+    y.set(0);
+  }
+
+  return (
+    <motion.div
+      ref={ref}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        rotateX: prefersReducedMotion ? 0 : rotateX,
+        rotateY: prefersReducedMotion ? 0 : rotateY,
+        transformStyle: 'preserve-3d',
+        perspective: 800,
+      }}
+      whileHover={{ scale: 1.03 }}
+      transition={{ scale: { duration: 0.2, ease: 'easeOut' } }}
+      className={`relative rounded-xl bg-[#2A2E38] border border-white/5 ${className}`}
+    >
+      <div
+        className="pointer-events-none absolute inset-0 rounded-xl opacity-0 hover:opacity-100 transition-opacity duration-300"
+        style={{
+          background: `radial-gradient(120px circle at 50% 0%, ${glowColor}22, transparent 70%)`,
+        }}
+      />
+      <div style={{ transform: 'translateZ(20px)' }}>{children}</div>
+    </motion.div>
+  );
+}

@@ -1,67 +1,54 @@
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import type { Tool } from '@/lib/tools';
+import { CATEGORIES } from '@/lib/tools';
 import { TiltCard } from '@/components/TiltCard';
-import type { Tool } from '@shared/tools';
-import * as Icons from 'lucide-react';
-import { useLocation } from 'wouter';
+import { StarButton } from '@/components/StarButton';
+import { getUsageCount, formatCount } from '@/lib/generator';
 
 interface ToolCardProps {
   tool: Tool;
+  favorited: boolean;
+  onToggleFavorite: (slug: string) => void;
 }
 
-export function ToolCard({ tool }: ToolCardProps) {
-  const [, setLocation] = useLocation();
-  
-  // Get the icon component dynamically
-  const IconComponent = (Icons as Record<string, any>)[tool.icon] || Icons.Zap;
+export function ToolCard({ tool, favorited, onToggleFavorite }: ToolCardProps) {
+  const category = CATEGORIES.find(c => c.name === tool.category);
+  const glow = category?.glow || '#F2A93B';
+  const Icon = tool.icon;
+  const count = getUsageCount(tool.slug);
 
-  const handleClick = () => {
-    setLocation(`/tool/${tool.slug}`);
-  };
+  let hintTag = 'Link optional';
+  if (tool.linkRequired) hintTag = 'Needs a link';
+  else if (tool.scratchOnly) hintTag = 'No content needed';
+  else if (tool.inputType === 'number' || tool.inputType === 'multi-input') hintTag = 'No content needed';
 
   return (
-    <TiltCard
-      className="h-full"
-      intensity={10}
-    >
-      <Card
-        className="h-full p-6 cursor-pointer hover-lift group"
-        onClick={handleClick}
-      >
-        {/* Icon and Badges */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="gradient-primary rounded-lg p-3 group-hover:shadow-lg transition-shadow">
-            <IconComponent className="w-6 h-6 text-white" />
+    <Link to={`/tool/${tool.slug}`} className="block">
+      <TiltCard glowColor={glow} className="p-5 h-full">
+        <div className="flex items-start justify-between">
+          <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
+            <Icon className="w-5 h-5 text-amber" />
           </div>
-          <div className="flex gap-2">
-            {tool.isNew && (
-              <Badge variant="secondary" className="text-xs">
-                New
-              </Badge>
-            )}
-            {tool.featured && (
-              <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs">
-                Featured
-              </Badge>
-            )}
-          </div>
+          <StarButton favorited={favorited} onToggle={() => onToggleFavorite(tool.slug)} size={18} />
         </div>
-
-        {/* Content */}
-        <h3 className="font-semibold text-lg mb-2 line-clamp-2">
-          {tool.name}
-        </h3>
-        <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-          {tool.description}
-        </p>
-
-        {/* Category Tag */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">
+        <h3 className="font-display font-semibold text-ink mt-4 text-base">{tool.name}</h3>
+        <p className="text-ink/60 text-sm mt-1.5 leading-relaxed">{tool.description}</p>
+        <div className="flex items-center gap-2 mt-4">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-amber/80 bg-amber/10 px-2 py-0.5 rounded">
             {tool.category}
           </span>
+          {tool.isNew && (
+            <span className="font-mono text-[10px] uppercase tracking-wider text-blueprint bg-blueprint/10 px-2 py-0.5 rounded">
+              New
+            </span>
+          )}
         </div>
-      </Card>
-    </TiltCard>
+        <div className="flex items-center justify-between mt-3">
+          <span className="font-mono text-[10px] text-ink/30">{hintTag}</span>
+          <span className="font-mono text-[10px] text-ink/30">{formatCount(count)}+ generated</span>
+        </div>
+      </TiltCard>
+    </Link>
   );
 }
